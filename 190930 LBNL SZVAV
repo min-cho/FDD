@@ -1,0 +1,44 @@
+rm(list=ls())
+setwd("C:/Users/MR004CHM/Desktop/Rcode") ##저장위치 지정##
+set.seed(777) 
+
+library(e1071)
+library(Rtsne)
+library(ggplot2)
+
+data<-read.csv("SZVAV_v2.csv",header=T)
+
+occu_fault <-subset(data,data[,15]==1 & data[,16]==1)
+occu_unfault <-subset(data,data[,15]==1 & data[,16]==0)
+unoccu_fault <-subset(data,data[,15]==0 & data[,16]==1)
+unoccu_unfault <-subset(data,data[,15]==0 & data[,16]==0)
+
+####
+# Supply Air Temperature, Heating SET, Cooling SET, OA temp, MA temp, RA temp : 6 values
+
+occu_fault <- occu_fault[,c(2:7)]
+occu_unfault <- occu_unfault[,c(2:7)]
+unoccu_fault <- unoccu_fault[,c(2:7)]
+unoccu_unfault <- unoccu_unfault[,c(2:7)]
+
+
+occu_fault <- cbind(occu_fault,c(1))
+occu_unfault <- cbind(occu_unfault,c(2))
+unoccu_fault <- cbind(unoccu_fault,c(3))
+unoccu_unfault <- cbind(unoccu_unfault,c(4))
+
+colnames(occu_fault)<-c("Supply temp","Heating SET","Cooling SET","OA temp", "MA temp", "RA temp", "label")
+colnames(occu_unfault)<-c("Supply temp","Heating SET","Cooling SET","OA temp", "MA temp", "RA temp", "label")
+colnames(unoccu_fault)<-c("Supply temp","Heating SET","Cooling SET","OA temp", "MA temp", "RA temp", "label")
+colnames(unoccu_unfault)<-c("Supply temp","Heating SET","Cooling SET","OA temp", "MA temp", "RA temp", "label")
+
+
+####
+# t-SNE
+
+data_all <- rbind(occu_fault,occu_unfault,unoccu_fault,unoccu_unfault)
+
+Rtsne_res <- Rtsne(data_all[1:6], check_duplicates = FALSE, pca = FALSE, perplexity=5, theta=0, dims=2, max_iter=1000)
+cols <- rainbow(4) #by 행정구
+plot(Rtsne_res$Y, t='p',col=cols, cex=.5, lwd=2)
+
