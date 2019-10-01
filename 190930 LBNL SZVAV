@@ -32,13 +32,48 @@ colnames(occu_unfault)<-c("Supply temp","Heating SET","Cooling SET","OA temp", "
 colnames(unoccu_fault)<-c("Supply temp","Heating SET","Cooling SET","OA temp", "MA temp", "RA temp", "label")
 colnames(unoccu_unfault)<-c("Supply temp","Heating SET","Cooling SET","OA temp", "MA temp", "RA temp", "label")
 
+data_all <- rbind(occu_fault,occu_unfault,unoccu_fault,unoccu_unfault)
+
+
 
 ####
 # t-SNE
-
-data_all <- rbind(occu_fault,occu_unfault,unoccu_fault,unoccu_unfault)
-
+library(Rtsne)
 Rtsne_res <- Rtsne(data_all[1:6], check_duplicates = FALSE, pca = FALSE, perplexity=5, theta=0, dims=2, max_iter=1000)
-cols <- rainbow(4) #by 행정구
+cols <- rainbow(4) 
 plot(Rtsne_res$Y, t='p',col=cols, cex=.5, lwd=2)
+
+
+### SOM
+library(kohonen)
+datamat<-as.matrix(data_all)
+som_grid <- somgrid(xdim = 50, ydim=50, topo="hexagonal")
+som_model <- som(datamat[,1:6], 
+                 grid=som_grid, 
+                 rlen=1000, 
+                 alpha=c(0.05,0.01), 
+                 keep.data = TRUE,
+                 normalizeDataLayers = TRUE)
+
+plot(som_model, type="changes")
+plot(som_model, type="count", label=label)
+plot(som_model, type="dist.neighbours") #U-MATRIX                                     
+plot(som_model, type="codes") #same as default type
+
+label <- data_all[,7]
+plot(som_model, type="mapping", col=label)
+# 1:black, 2:red, 3:green, 4: blue
+
+
+
+### PCA 
+pca_result <- prcomp(data_all[,1:6],tol=0.01)
+summary(pca_result)
+#print(pca_result)gg
+#plot(pca_result, type = "l")
+#from https://cran.r-project.org/web/packages/ggfortify/vignettes/plot_pca.html
+require(ggfortify)
+autoplot(pca_result, label=TRUE, label.size=2, shape = FALSE, loadings=FALSE, col=data_all[,7])
+
+
 
