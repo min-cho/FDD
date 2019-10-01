@@ -1,0 +1,53 @@
+rm(list=ls())
+setwd("C:/Users/MR004CHM/Desktop/Rcode") ##저장위치 지정##
+set.seed(777) 
+
+library(e1071)
+library(ggplot2)
+
+data<-read.csv("SZVAV_v2.csv",header=T)
+
+occu_fault <-subset(data,data[,15]==1 & data[,16]==1)
+occu_unfault <-subset(data,data[,15]==1 & data[,16]==0)
+unoccu_fault <-subset(data,data[,15]==0 & data[,16]==1)
+unoccu_unfault <-subset(data,data[,15]==0 & data[,16]==0)
+
+####
+# Supply Air Temperature, Heating SET, Cooling SET, OA temp, MA temp, RA temp : 6 values
+
+occu_fault <- cbind(occu_fault,c("F"))[,c(2:7,15,17)]
+occu_unfault <- cbind(occu_unfault,c("U"))[,c(2:7,15,17)]
+unoccu_fault <- cbind(unoccu_fault,c("F"))[,c(2:7,15,17)]
+unoccu_unfault <- cbind(unoccu_unfault,c("U"))[,c(2:7,15,17)]
+
+colnames(occu_fault)<-c("Supply_temp","Heating_SET","Cooling_SET","OA_temp", "MA_temp", "RA_temp", "occupancy","truth")
+colnames(occu_unfault)<-c("Supply_temp","Heating_SET","Cooling_SET","OA_temp", "MA_temp", "RA_temp", "occupancy","truth")
+colnames(unoccu_fault)<-c("Supply_temp","Heating_SET","Cooling_SET","OA_temp", "MA_temp", "RA_temp", "occupancy","truth")
+colnames(unoccu_unfault)<-c("Supply_temp","Heating_SET","Cooling_SET","OA_temp", "MA_temp", "RA_temp", "occupancy","truth")
+
+data_all <- rbind(occu_fault,occu_unfault,unoccu_fault,unoccu_unfault)
+data_ran <- data_all[sample(nrow(data_all)),]
+
+
+ntrain = round(nrow(data_ran)*0.8)
+
+data_train <- data_ran[1:ntrain,]
+data_test <- data_ran[(ntrain+1):nrow(data_ran),]
+
+#color_easy = c("red", "blue", "yellow", "green")[data_all$truth]
+
+
+#######################################
+#step 1: 6 variables
+
+library(randomForest)
+library(caret)
+
+rf.fit = randomForest(truth ~ Supply_temp + Heating_SET + Cooling_SET + OA_temp + MA_temp + RA_temp + occupancy
+                      , data=data_train, mtry = floor(sqrt(7)), ntree = 500, importance = T)
+# 7 is determined by heuristic golden number #
+rf.fit
+
+pred_y = predict(rf.fit, data_test)
+
+confusionMatrix(pred_y, data_test$truth)
