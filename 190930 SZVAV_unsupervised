@@ -1,0 +1,80 @@
+library(ohmygod)
+
+rm(list=ls())
+setwd("C:/Users/MR004CHM/Desktop/Rcode") ##저장위치 지정##
+set.seed(777) 
+
+library(e1071)
+library(ggplot2)
+
+data<-read.csv("SZVAV_v2.csv",header=T)
+
+occu_fault <-subset(data,data[,15]==1 & data[,16]==1)
+occu_unfault <-subset(data,data[,15]==1 & data[,16]==0)
+unoccu_fault <-subset(data,data[,15]==0 & data[,16]==1)
+unoccu_unfault <-subset(data,data[,15]==0 & data[,16]==0)
+
+####
+# Supply Air Temperature, Heating SET, Cooling SET, OA temp, MA temp, RA temp : 6 values
+
+occu_fault <- cbind(occu_fault,c(1))[,c(2:8)]
+occu_unfault <- cbind(occu_unfault,c(2))[,c(2:8)]
+unoccu_fault <- cbind(unoccu_fault,c(3))[,c(2:8)]
+unoccu_unfault <- cbind(unoccu_unfault,c(4))[,c(2:8)]
+
+
+colnames(occu_fault)<-c("Supply temp","Heating SET","Cooling SET","OA temp", "MA temp", "RA temp", "truth")
+colnames(occu_unfault)<-c("Supply temp","Heating SET","Cooling SET","OA temp", "MA temp", "RA temp", "truth")
+colnames(unoccu_fault)<-c("Supply temp","Heating SET","Cooling SET","OA temp", "MA temp", "RA temp", "truth")
+colnames(unoccu_unfault)<-c("Supply temp","Heating SET","Cooling SET","OA temp", "MA temp", "RA temp", "truth")
+
+data_all <- rbind(occu_fault,occu_unfault,unoccu_fault,unoccu_unfault)
+color_easy = c("red", "blue", "yellow", "green")[data_all$truth]
+
+
+####
+# t-SNE
+#library(Rtsne)
+#Rtsne_res <- Rtsne(data_all[1:6], check_duplicates = FALSE, pca = FALSE, perplexity=5, theta=0, dims=2, max_iter=1000)
+#cols <- rainbow(4) #by 행정구
+#plot(Rtsne_res$Y, t='p',col=cols, cex=.5, lwd=2)
+
+
+
+
+### SOM
+library(kohonen)
+datamat<-as.matrix(data_all)
+som_grid <- somgrid(xdim = 50, ydim=50, topo="hexagonal")
+som_model <- som(datamat[,1:6], 
+                 grid=som_grid, 
+                 rlen=1000, 
+                 alpha=c(0.05,0.01), 
+                 keep.data = TRUE,
+                 normalizeDataLayers = TRUE)
+
+plot(som_model, type="changes")
+plot(som_model, type="count", label=label)
+plot(som_model, type="dist.neighbours") #U-MATRIX                                     
+plot(som_model, type="codes") #same as default type
+
+#label <- data_all[,7]
+color_easy = c("red", "blue", "yellow", "green")[data_all$truth]
+plot(som_model, type="mapping", col=color_easy)
+
+
+
+
+### PCA 
+
+pca_result <- prcomp(data_all[,1:6],tol=0.01)
+summary(pca_result)
+#print(pca_result)gg
+#plot(pca_result, type = "l")
+#from https://cran.r-project.org/web/packages/ggfortify/vignettes/plot_pca.htmllibrary(ggfortify)
+
+#autoplot(pca_result)
+color_easy = c("red", "blue", "yellow", "green")[data_all$truth]
+autoplot(pca_result, label=FALSE, shape = TRUE, loadings=FALSE,colour=color_easy)
+
+
