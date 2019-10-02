@@ -1,8 +1,6 @@
 rm(list=ls())
 setwd("C:/Users/MR004CHM/Desktop/Rcode") ##저장위치 지정##
 set.seed(777) 
-
-library(e1071)
 library(ggplot2)
 
 data<-read.csv("SZVAV_v2.csv",header=T)
@@ -35,19 +33,49 @@ data_train <- data_ran[1:ntrain,]
 data_test <- data_ran[(ntrain+1):nrow(data_ran),]
 
 #color_easy = c("red", "blue", "yellow", "green")[data_all$truth]
-
-
 #######################################
-#step 1: 6 variables
+# Random Forest - 7 variables
 
 library(randomForest)
 library(caret)
 
 rf.fit = randomForest(truth ~ Supply_temp + Heating_SET + Cooling_SET + OA_temp + MA_temp + RA_temp + occupancy
                       , data=data_train, mtry = floor(sqrt(7)), ntree = 500, importance = T)
-# 7 is determined by heuristic golden number #
-rf.fit
+# sqrt 7 is determined by heuristic golden number #
 
+rf.fit = randomForest(truth ~ Supply_temp + Heating_SET + Cooling_SET + OA_temp + MA_temp + RA_temp + occupancy
+                      , data=data_train, mtry = 7, ntree = 500, importance = T)
+
+plot(rf.fit)
+varImpPlot(rf.fit)
 pred_y = predict(rf.fit, data_test)
-
 confusionMatrix(pred_y, data_test$truth)
+
+
+
+#######################################
+# Logistic Regression
+reg.fit <- glm(truth ~ Supply_temp + Heating_SET + Cooling_SET + OA_temp + MA_temp + RA_temp
+               , data=data_train, family = "binomial")
+
+#delete Cooling_SET and OA_temp 
+
+reg.fit <- glm(truth ~ Supply_temp + Heating_SET + MA_temp + RA_temp
+               , data=data_train, family = "binomial")
+
+summary(reg.fit)
+
+
+#######################################
+#  SVM - 7 variables
+
+library(e1071)
+svm.fit = svm(truth ~ Supply_temp + Heating_SET + Cooling_SET + OA_temp + MA_temp + RA_temp
+                      , kernel="radial", data=data_train)
+pred_y <- predict(svm.fit, data_test)
+confusionMatrix(pred_y, data_test$truth)
+
+#plot(svm.fit, formula = Supply_temp ~ RA_temp, data=data_train)
+# USELESS
+
+
