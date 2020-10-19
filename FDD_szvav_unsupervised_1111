@@ -1,0 +1,87 @@
+rm(list=ls())
+setwd("C:/Users/MR004CHM/Desktop/Rcode") ##저장위치 지정##
+set.seed(777)
+library(ggplot2)
+
+data<-read.csv("SZVAV_v3.csv",header=T)
+data$month <-as.character(data$month)
+data$day <-as.character(data$day)
+data$date<-paste0(data$month,data$day)
+data<-data[,-c(1,2)]
+
+data<-data[,c(1,2,3,4,5,6,14,15,16)]
+
+
+colnames(data)<-c("Supply_temp","Heating_SET","Cooling_SET","OA_temp", "MA_temp", "RA_temp", "occupancy","truth","date")
+
+#####  MIN-MAX
+data_1 = data[,1:8]
+data_1<-apply(t(data_1), 1, function(x)(x-min(x,na.rm=TRUE))/(max(x,na.rm=TRUE)-min(x,na.rm=TRUE))) #Min-Max Normalization
+data_2= cbind(as.data.frame(data_1), data$date)
+#####
+
+
+
+
+
+
+
+### only for occupied period
+data=data_2
+colnames(data)<-c("Supply_temp","Heating_SET","Cooling_SET","OA_temp", "MA_temp", "RA_temp", "occupancy","truth","date")
+data<- subset(data, data$occupancy==1)
+
+### SOM
+library(kohonen)
+datamat<-as.matrix(data[,1:6])
+som_grid <- somgrid(xdim = 50, ydim=50, topo="hexagonal")
+som_model <- som(datamat[,1:6], 
+                 grid=som_grid, 
+                 rlen=2000, 
+                 alpha=c(0.05,0.01), 
+                 keep.data = TRUE,
+                 normalizeDataLayers = TRUE)
+
+#plot(som_model, type="changes")
+#plot(som_model, type="count", label=label)
+plot(som_model, type="dist.neighbours") #U-MATRIX                                     
+#plot(som_model, type="codes") #same as default type
+
+#11colors
+color_easy = c("red","yellow","green","blue","coral","black","purple","hotpink","khaki","cyan","brown")[data$date] 
+
+color_easy = c("blue","cyan","deepskyblue","navy","blue3","powderblue",
+               "red","salmon","skyblue","orangered","coral")[data$date] 
+
+color_easy = c("red","orange","orangered","coral","salmon","red2",
+               "blue","cyan","orangered3","navy","deepskyblue")[data$date] 
+
+plot(som_model, type="mapping", pchs=18, main="",col=color_easy)
+
+
+
+
+
+
+### only for unfaulted days
+data=data_2
+colnames(data)<-c("Supply_temp","Heating_SET","Cooling_SET","OA_temp", "MA_temp", "RA_temp", "occupancy","truth","date")
+data<- subset(data, data$truth==0)
+
+datamat<-as.matrix(data[,1:6])
+som_grid <- somgrid(xdim = 50, ydim=50, topo="hexagonal")
+som_model <- som(datamat[,1:6], 
+                 grid=som_grid, 
+                 rlen=2000, 
+                 alpha=c(0.05,0.01), 
+                 keep.data = TRUE,
+                 normalizeDataLayers = TRUE)
+
+#plot(som_model, type="changes")
+#plot(som_model, type="count", label=label)
+plot(som_model, type="dist.neighbours") #U-MATRIX                                     
+#plot(som_model, type="codes") #same as default type
+
+#4colors
+color_easy = c("red","green","blue","black")[data$date] 
+plot(som_model, type="mapping", pchs=18, main="",col=color_easy)
