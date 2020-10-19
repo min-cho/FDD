@@ -1,0 +1,132 @@
+rm(list=ls())
+setwd("C:/Users/MR004CHM/Desktop/Rcode") ##저장위치 지정##
+set.seed(777)
+library(e1071)
+library(ggplot2)
+library(ggfortify)
+
+data<-read.csv("RTU_v2.csv",header=T)
+
+data$month <-as.character(data$month)
+data$day <-as.character(data$day)
+colnames(data)[3]<-"date"
+data$date<-paste0(data$month,data$day)
+data<-data[,-c(1,2,4)]
+
+for(i in 1:(nrow(data))){
+  if(data$date[i]=="91" | data$date[i]=="1130" | data$date[i]=="123" | data$date[i]=="129" | data$date[i]=="1224" | data$date[i]=="24" | data$date[i]=="25")(
+    data$Fault.Detection.Ground.Truth[i]<-"U"
+  )else(data$Fault.Detection.Ground.Truth[i]<-"F")}
+
+############ make data SIMPLER #############
+
+data<- subset(data, select=-(RTU_Supply.Air.Fan.Status))
+data<- subset(data, select=-(RTU_Circuit.1.Condenser.Outlet.Pressure))
+data<- subset(data, select=-(RTU_Circuit.2.Condenser.Outlet.Pressure))
+data<- subset(data, select=-(RTU_Electricity))
+data<- subset(data, select=-(RTU_Natural.Gas))
+data<- subset(data, select=-(Terminal_Room.202.Air.Humidity))
+data<- subset(data, select=-(Terminal_Room.203.Air.Humidity))
+data<- subset(data, select=-(Terminal_Room.204.Air.Humidity))
+data<- subset(data, select=-(Terminal_Room.205.Air.Humidity))
+data<- subset(data, select=-(Terminal_Room.206.Air.Humidity))
+data<- subset(data, select=-(Terminal_Room.202.Air.Temperature))
+data<- subset(data, select=-(Terminal_Room.203.Air.Temperature))
+data<- subset(data, select=-(Terminal_Room.204.Air.Temperature))
+data<- subset(data, select=-(Terminal_Room.205.Air.Temperature))
+data<- subset(data, select=-(Terminal_Room.206.Air.Temperature))
+data<- subset(data, select=-(Lighting.System_Electricity))
+data<- subset(data, select=-(Lighting.System_Control.Command))
+data<- subset(data, select=-(RTU_Compressor.1.On.Off.Status))
+data<- subset(data, select=-(RTU_Compressor.2.On.Off.Status))
+data<- subset(data, select=-(RTU_Fan.Electricity))
+data<- subset(data, select=-(VAV.Box_Room.102.Reheat.Status))
+data<- subset(data, select=-(VAV.Box_Room.103.Reheat.Status))
+data<- subset(data, select=-(VAV.Box_Room.104.Reheat.Status))
+data<- subset(data, select=-(VAV.Box_Room.105.Reheat.Status))
+data<- subset(data, select=-(VAV.Box_Room.106.Reheat.Status))
+data<- subset(data, select=-(VAV.Box_Room.202.Reheat.Status))
+data<- subset(data, select=-(VAV.Box_Room.203.Reheat.Status))
+data<- subset(data, select=-(VAV.Box_Room.204.Reheat.Status))
+data<- subset(data, select=-(VAV.Box_Room.205.Reheat.Status))
+data<- subset(data, select=-(VAV.Box_Room.206.Reheat.Status))
+data<- subset(data, select=-(VAV.Box_Room.202.Air.Temperature))
+data<- subset(data, select=-(VAV.Box_Room.203.Air.Temperature))
+data<- subset(data, select=-(VAV.Box_Room.204.Air.Temperature))
+data<- subset(data, select=-(VAV.Box_Room.205.Air.Temperature))
+data<- subset(data, select=-(VAV.Box_Room.206.Air.Temperature))
+
+data <-subset(data, data$date != "27")
+data <-subset(data, data$date != "29")
+data <-subset(data, data$date != "21")
+data <-subset(data, data$date != "131")
+
+data <-subset(data, data$date != "827")
+data <-subset(data, data$date != "829")
+data <-subset(data, data$date != "91")
+
+
+data <-subset(data, data$date != "1214") ###TEMPORARY
+
+data<-na.omit(data)
+
+
+##############################################################################
+##### first, lets See and Feel the data with PCA (31var, 1truth)
+
+occu_fault <-subset(data, data$Occupancy.Mode.Indicator==1 & data$Fault.Detection.Ground.Truth=="F")
+occu_unfault <-subset(data, data$Occupancy.Mode.Indicator==1 & data$Fault.Detection.Ground.Truth=="U")
+unoccu_fault <-subset(data, data$Occupancy.Mode.Indicator==0 & data$Fault.Detection.Ground.Truth=="F")
+unoccu_unfault <-subset(data, data$Occupancy.Mode.Indicator==0 & data$Fault.Detection.Ground.Truth=="U")
+
+occu_fault$truth <- 1        #red
+occu_unfault$truth <- 2      #blue
+unoccu_fault$truth <- 3      #yellow
+unoccu_unfault$truth <- 4    #green
+
+data_all <- rbind(occu_fault,occu_unfault,unoccu_fault,unoccu_unfault)
+
+data_all<-subset(data_all, select=-(Occupancy.Mode.Indicator))
+data_all<-subset(data_all, select=-(Fault.Detection.Ground.Truth))
+
+pca_result <- prcomp(data_all[,2:32],tol=0.01)
+summary(pca_result)
+color_easy = c("red", "blue", "yellow", "green")[data_all$truth]
+autoplot(pca_result, label=TRUE, shape = TRUE, loadings=FALSE, colour=color_easy)
+
+
+
+### SOM
+
+library(kohonen)
+datamat<-as.matrix(data_all[,2:32])
+som_grid <- somgrid(xdim = 50, ydim=50, topo="hexagonal")
+som_model <- som(datamat[,1:6], 
+                 grid=som_grid, 
+                 rlen=2000, 
+                 alpha=c(0.05,0.01), 
+                 keep.data = TRUE,
+                 normalizeDataLayers = TRUE)
+
+plot(som_model, type="changes")
+plot(som_model, type="count", label=label)
+plot(som_model, type="dist.neighbours") #U-MATRIX  
+color_easy = c("red", "blue", "yellow", "green")[data_all$truth]
+plot(som_model, type="mapping", col=color_easy)
+
+
+
+
+#### supervised - Random Forest with selected variables
+
+
+data_ran <- data[sample(nrow(data)),]
+ntrain = round(nrow(data_ran)*0.8)
+data_train <- data_ran[1:ntrain,]
+data_test <- data_ran[(ntrain+1):nrow(data_ran),]
+
+
+library(randomForest)
+library(caret)
+
+colnames(occu_fault)<-c("Supply_temp","Heating_SET","Cooling_SET","OA_temp", "MA_temp", "RA_temp", "occupancy","truth")
